@@ -72,5 +72,5 @@ def reset_distance_travelled():
 def turn_right():
     pass
 
-def follow_wall(distance)
+def follow_wall(distance):
     pass
