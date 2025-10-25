@@ -22,6 +22,8 @@ US_PORT = Port.S4
 WHEEL_DIAMETER_METERS = .055
 WHEEL_ADJUSTMENT = 1.00
 CIRCUMFERENCE = (WHEEL_DIAMETER_METERS * math.pi) * WHEEL_ADJUSTMENT 
+
+SPEED_WALL = 180
 KP_WALL = 0.2
 KD_WALL = 0.2
 
@@ -72,5 +74,36 @@ def reset_distance_travelled():
 def turn_right():
     pass
 
+# run motors with speed adjusted by a (proportion of speed)
+# with a > 0, the left motor will spin at a lower speed, and right higher
+# When going forward, a = 0 goes straight, a > 0 turns left, a < 0 turns right
+def run_motors_proportional(speed = SPEED_WALL, a = 0)
+    left_motor.run(speed * (1 - a))
+    right_motor.run(speed * (1 + a))
+
+def stop_motors():
+    left_motor.brake()
+    right_motor.brake()
+
+# follow along a wall on the left for distance meters, and then stop
 def follow_wall(distance):
-    pass
+    # assume robot starts with heading parallel to wall
+    reset_distance_travelled()
+    # go forward
+    run_motors_proportional()
+    # check odometry distance
+    while get_distance_travelled() < distance:
+        # check US distance
+        e = get_us_distance() - TARGET_OFFSET_WALL
+        de = 0 # TODO: calculate rate of change of e?
+        # if US distance < target offset, turn left more
+        # if US distance > target offset, turn right more
+        run_motors_proportional(a = e * KP_WALL + de * KD_WALL)
+        # if left bump sensor is hit, make a big rightward correction
+        if (left_bump_sensor.pressed()):
+            run_motors_proportional(a = -0.5)
+        # wait a bit, then repeat from after go forward
+        wait(50)
+    # if odometry >= target distance, stop and beep
+    stop_motors()
+    ev3.beep()
