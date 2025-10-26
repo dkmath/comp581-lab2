@@ -25,13 +25,17 @@ CIRCUMFERENCE = (WHEEL_DIAMETER_METERS * math.pi) * WHEEL_ADJUSTMENT
 KP_WALL = 0.2
 KD_WALL = 0.2
 
+SPEED_FORWARD = 190
+SPEED_BACKWARD = 180
+
 TARGET_DISTANCE_WALL = 2.2
 TARGET_DISTANCE_MARGIN = 0.05
 
 TARGET_OFFSET_WALL = .10
 
 US_OFFSET_90 = 0
-US_BACKUP_DISTANCE = .15
+US_BACKUP_DISTANCE = .10
+
 ev3 = EV3Brick()
 left_motor = Motor(LEFT_MOTOR_PORT, positive_direction = Direction.CLOCKWISE)
 right_motor = Motor(RIGHT_MOTOR_PORT, positive_direction = Direction.CLOCKWISE)
@@ -57,11 +61,12 @@ def wait_until_center_button():
     current_sw.resume()
 
 def get_us_distance():
-    pass
+    return us_sensor.distance()/100
 
-def rotate_us_sensor_left():
-    # resest value before turning
-    pass
+def rotate_us_sensor(angle):
+    us_motor.reset_angle(angle) # encoder reset         
+    us_motor.run_target(100, angle) # should move to angle       
+    wait(100)                        
 
 def get_distance_travelled():
     pass
@@ -74,3 +79,33 @@ def turn_right():
 
 def follow_wall(distance):
     pass
+
+def run_motors_proportional(speed = SPEED_WALL, a = 0)
+    left_motor.run(speed * (1 - a))
+    right_motor.run(speed * (1 + a))
+
+def stop_motors():
+    left_motor.brake()
+    right_motor.brake()
+
+def drive_forward_until_bump():
+    run_motors_proportional(speed=SPEED_FORWARD, a=0)
+    while not right_bump.pressed():
+        wait(20)
+    stop_motors()
+    wait(100)
+
+def backup_for_turn():
+    run_motors_proportional(speed=SPEED_BACKWARD, a=0)
+    distance = get_us_distance()
+    while distance < US_BACKUP_DISTANCE:
+        # update distance from ultrasonic
+        distance = get_us_distance()
+        wait(20)
+    stop_motors()
+
+
+wait_until_center_button()
+rotate_us_sensor(0)
+drive_forward_until_bump()
+backup_for_turn()
