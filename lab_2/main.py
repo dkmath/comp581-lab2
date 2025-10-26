@@ -1,7 +1,8 @@
+#!/usr/bin/env pybricks-micropython
+
 # Disha Math 730572610
 # Luca Just 730665722
 
-#!/usr/bin/env pybricks-micropython
 from pybricks.hubs import EV3Brick
 from pybricks.ev3devices import (Motor, TouchSensor, UltrasonicSensor, GyroSensor)
 from pybricks.parameters import (Port, Direction, Button)
@@ -26,7 +27,8 @@ KP_WALL = 0.2
 KD_WALL = 0.2
 
 SPEED_FORWARD = 190
-SPEED_BACKWARD = 180
+SPEED_BACKWARD = - 180
+SPEED_WALL = 180
 
 TARGET_DISTANCE_WALL = 2.2
 TARGET_DISTANCE_MARGIN = 0.05
@@ -55,17 +57,16 @@ def wait_until_center_button():
     ev3.screen.print("Stopwatch: " + str(current_sw.time() / 1_000) + "s")
     ev3.screen.print("Mission " + str(current_objective))
     ev3.screen.print("Biscuit is ready")
-    ev3.screen.print("Heading: " + str(gyroscope.angle()) + "deg")
+    #ev3.screen.print("Heading: " + str(gyroscope.angle()) + "deg")
     while Button.CENTER not in ev3.buttons.pressed():
         wait(50)
     current_sw.resume()
 
 def get_us_distance():
-    return us_sensor.distance()/100
+    return us_sensor.distance()/1000
 
-def rotate_us_sensor(angle):
-    us_motor.reset_angle(angle) # encoder reset         
-    us_motor.run_target(100, angle) # should move to angle       
+def rotate_us_sensor(angle):       
+    us_motor.run_target(50, angle) # should move to angle       
     wait(100)                        
 
 def get_distance_travelled():
@@ -75,12 +76,16 @@ def reset_distance_travelled():
     pass
 
 def turn_right():
-    pass
+    left_motor.reset_angle(0)
+    right_motor.reset_angle(0)
+
+    left_motor.run_target(SPEED_FORWARD, 180, wait = False)
+    right_motor.run_target(SPEED_FORWARD,-180)
 
 def follow_wall(distance):
     pass
 
-def run_motors_proportional(speed = SPEED_WALL, a = 0)
+def run_motors_proportional(speed = SPEED_WALL, a = 0):
     left_motor.run(speed * (1 - a))
     right_motor.run(speed * (1 + a))
 
@@ -90,22 +95,23 @@ def stop_motors():
 
 def drive_forward_until_bump():
     run_motors_proportional(speed=SPEED_FORWARD, a=0)
-    while not right_bump.pressed():
+    while not right_bump_sensor.pressed():
         wait(20)
     stop_motors()
     wait(100)
 
 def backup_for_turn():
     run_motors_proportional(speed=SPEED_BACKWARD, a=0)
-    distance = get_us_distance()
-    while distance < US_BACKUP_DISTANCE:
-        # update distance from ultrasonic
-        distance = get_us_distance()
+    distance_to_wall = get_us_distance()
+    while distance_to_wall < US_BACKUP_DISTANCE:
+        distance_to_wall = get_us_distance()
         wait(20)
     stop_motors()
+   # wait(100)
 
 
-wait_until_center_button()
-rotate_us_sensor(0)
+#wait_until_center_button()
 drive_forward_until_bump()
 backup_for_turn()
+turn_right()
+rotate_us_sensor(95)
