@@ -24,21 +24,22 @@ WHEEL_DIAMETER_METERS = .055
 WHEEL_ADJUSTMENT = 1.00
 CIRCUMFERENCE = (WHEEL_DIAMETER_METERS * math.pi) * WHEEL_ADJUSTMENT 
 
-SPEED_WALL = 180
-KP_WALL = 0.2
+KP_WALL = 3.5
 KD_WALL = 0.2
 
 SPEED_FORWARD = 190
 SPEED_BACKWARD = - 180
 SPEED_WALL = 180
+SPEED_TURNING = 90
 
 TARGET_DISTANCE_WALL = 2.2
-TARGET_DISTANCE_MARGIN = 0.05
 
-TARGET_OFFSET_WALL = .10
+TARGET_OFFSET_WALL = .02
 
-US_OFFSET_90 = 0
-US_BACKUP_DISTANCE = .10
+US_OFFSET_FORWARD = .02
+US_OFFSET_WALL = .13
+
+US_BACKUP_DISTANCE = TARGET_OFFSET_WALL
 
 ev3 = EV3Brick()
 left_motor = Motor(LEFT_MOTOR_PORT, positive_direction = Direction.CLOCKWISE)
@@ -53,6 +54,8 @@ current_sw = StopWatch()
 current_sw.pause()
 current_sw.reset()
 
+us_facing_wall = False
+
 def wait_until_center_button():
     current_sw.pause()
     ev3.screen.clear()
@@ -65,29 +68,34 @@ def wait_until_center_button():
     current_sw.resume()
 
 def get_us_distance():
-    return us_sensor.distance()/1000
+    if us_facing_wall:
+        return (us_sensor.distance()/1000) - US_OFFSET_WALL
+    return us_sensor.distance()/1000 - US_OFFSET_FORWARD
 
-def rotate_us_sensor(angle):       
-    us_motor.run_target(50, angle) # should move to angle       
+def rotate_us_sensor(angle):
+    global us_facing_wall    
+    us_motor.run_target(50, angle) # should move to angle
+    us_facing_wall = True
     wait(100)                        
 
 def get_distance_travelled():
-    pass
+    return (right_motor.angle() + left_motor.angle())/2 * CIRCUMFERENCE / 360
 
 def reset_distance_travelled():
-    pass
+    left_motor.reset_angle(0)
+    right_motor.reset_angle(0)
 
 def turn_right():
     left_motor.reset_angle(0)
     right_motor.reset_angle(0)
 
-    left_motor.run_target(SPEED_FORWARD, 180, wait = False)
-    right_motor.run_target(SPEED_FORWARD,-180)
+    left_motor.run_target(SPEED_TURNING, 200, wait = False)
+    right_motor.run_target(SPEED_TURNING,-200)
 
 # run motors with speed adjusted by a (proportion of speed)
 # with a > 0, the left motor will spin at a lower speed, and right higher
 # When going forward, a = 0 goes straight, a > 0 turns left, a < 0 turns right
-def run_motors_proportional(speed = SPEED_WALL, a = 0)
+def run_motors_proportional(speed = SPEED_WALL, a = 0):
     left_motor.run(speed * (1 - a))
     right_motor.run(speed * (1 + a))
 
@@ -111,21 +119,19 @@ def follow_wall(distance):
         run_motors_proportional(a = e * KP_WALL + de * KD_WALL)
         # if left bump sensor is hit, make a big rightward correction
         if (left_bump_sensor.pressed()):
-            run_motors_proportional(a = -0.5)
+            stop_motors()
+            run_motors_proportional(speed = -SPEED_WALL)
+            wait(1000)
+            stop_motors()
+            run_motors_proportional(a = -1)
+            wait(500)
+            run_motors_proportional()
+            wait(1000)
         # wait a bit, then repeat from after go forward
         wait(50)
     # if odometry >= target distance, stop and beep
     stop_motors()
-    ev3.beep()
-    pass
-
-def run_motors_proportional(speed = SPEED_WALL, a = 0):
-    left_motor.run(speed * (1 - a))
-    right_motor.run(speed * (1 + a))
-
-def stop_motors():
-    left_motor.brake()
-    right_motor.brake()
+    ev3.speaker.beep()
 
 def drive_forward_until_bump():
     run_motors_proportional(speed=SPEED_FORWARD, a=0)
@@ -144,8 +150,11 @@ def backup_for_turn():
    # wait(100)
 
 
-#wait_until_center_button()
+wait_until_center_button()
 drive_forward_until_bump()
 backup_for_turn()
 turn_right()
-rotate_us_sensor(95)
+rotate_us_sensor(90)
+follow_wall(2.2)
+# follow_wall(10)
+rotate_us_sensor(0)
